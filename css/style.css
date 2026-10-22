@@ -1,0 +1,239 @@
+:root {
+  --black: #0b0b0b;
+  --white: #f7f3ea;
+  --red: #e5232b;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--black);
+  color: var(--white);
+  font-family: "Helvetica Neue", Arial, sans-serif;
+}
+
+#scene {
+  position: fixed;
+  inset: 0;
+  cursor: grab;
+}
+#scene:active { cursor: grabbing; }
+
+/* ---------- Polka-dot cards ---------- */
+.card {
+  position: fixed;
+  background: var(--black);
+  border: 3px solid var(--white);
+  border-radius: 18px;
+  box-shadow: 8px 8px 0 var(--red);
+}
+
+/* ---------- Title ---------- */
+.title {
+  position: fixed;
+  top: 18px;
+  left: 22px;
+  pointer-events: none;
+}
+.title h1 {
+  margin: 0;
+  line-height: 0.95;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.title .band {
+  display: inline-block;
+  padding: 10px 18px;
+  font-size: clamp(22px, 3.4vw, 44px);
+  font-weight: 900;
+  color: var(--black);
+  background-color: var(--white);
+  background-image: radial-gradient(circle, rgba(11, 11, 11, 0.9) 18%, transparent 20%);
+  background-size: 22px 22px;
+  border-radius: 14px;
+  text-shadow: 3px 3px 0 var(--white), -3px -3px 0 var(--white), 3px -3px 0 var(--white), -3px 3px 0 var(--white);
+}
+.title .tour {
+  display: block;
+  margin-top: 10px;
+  font-size: clamp(14px, 1.6vw, 20px);
+  font-weight: 700;
+  letter-spacing: 0.3em;
+}
+.title .tour b {
+  color: var(--white);
+  background: var(--red);
+  padding: 2px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.1em;
+}
+
+/* ---------- Now landing ---------- */
+.now {
+  left: 22px;
+  bottom: 22px;
+  width: min(340px, calc(100vw - 44px));
+  padding: 16px 18px 14px;
+}
+.now-kicker {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--red);
+}
+.now-city {
+  margin-top: 4px;
+  font-size: 28px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+.now-venue { margin-top: 2px; font-size: 15px; opacity: 0.9; }
+.now-dates {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 3px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--black);
+  background: var(--white);
+  border-radius: 999px;
+}
+
+.controls {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+.controls button {
+  flex: 0 0 auto;
+  min-width: 42px;
+  height: 36px;
+  padding: 0 12px;
+  font: inherit;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--white);
+  background: transparent;
+  border: 2px solid var(--white);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.controls button:hover { background: rgba(247, 243, 234, 0.12); }
+.controls button.active {
+  color: var(--black);
+  background-color: var(--white);
+}
+.controls button:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
+#btn-follow { margin-left: auto; text-transform: uppercase; letter-spacing: 0.1em; }
+
+/* ---------- Agenda ---------- */
+.agenda {
+  top: 22px;
+  right: 22px;
+  bottom: 22px;
+  width: min(330px, 34vw);
+  display: flex;
+  flex-direction: column;
+  padding: 16px 0 10px;
+}
+.agenda h2 {
+  margin: 0 18px 10px;
+  font-size: 18px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+}
+.agenda h2 small { font-size: 11px; color: var(--red); letter-spacing: 0.1em; }
+.agenda ol {
+  flex: 1;
+  margin: 0;
+  padding: 0 8px;
+  list-style: none;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--white) transparent;
+}
+.agenda li { margin: 0; }
+.agenda li button {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 2px 10px;
+  width: 100%;
+  padding: 7px 10px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: 12px;
+  cursor: pointer;
+}
+.agenda li button:hover { background: rgba(247, 243, 234, 0.08); }
+.agenda li button:focus-visible { outline: 2px solid var(--red); }
+.agenda .pip {
+  grid-row: span 2;
+  align-self: center;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--white);
+  border-radius: 50%;
+}
+.agenda li.visited .pip { background: var(--white); }
+.agenda li.current .pip { background: var(--red); border-color: var(--red); box-shadow: 0 0 0 3px var(--white); }
+.agenda li.current button { background: rgba(229, 35, 43, 0.18); }
+.agenda .city { font-weight: 800; text-transform: uppercase; font-size: 13px; letter-spacing: 0.04em; }
+.agenda .meta { font-size: 12px; opacity: 0.75; }
+.agenda .meta b { color: var(--red); font-weight: 700; }
+.agenda .source {
+  margin: 8px 18px 0;
+  font-size: 10.5px;
+  line-height: 1.4;
+  opacity: 0.6;
+}
+.agenda .source a { color: inherit; }
+
+/* ---------- Floating label over the current stop ---------- */
+.stop-label {
+  position: fixed;
+  left: 0;
+  top: 0;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--black);
+  background: var(--white);
+  border: 2px solid var(--black);
+  border-radius: 999px;
+  box-shadow: 3px 3px 0 var(--red);
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 14px));
+}
+
+/* ---------- Small screens ---------- */
+@media (max-width: 760px) {
+  .agenda {
+    top: auto;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    width: auto;
+    height: 30vh;
+  }
+  .now {
+    left: 12px;
+    right: 12px;
+    bottom: calc(30vh + 24px);
+    width: auto;
+    padding: 10px 14px;
+  }
+  .now-city { font-size: 20px; }
+  .controls { margin-top: 8px; }
+  .title { top: 10px; left: 12px; }
+  .card { box-shadow: 5px 5px 0 var(--red); }
+}

@@ -1,0 +1,634 @@
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { TOUR } from './tour.js';
+
+const BLACK = 0x0b0b0b;
+const WHITE = 0xf7f3ea;
+const RED = 0xe5232b;
+
+const R = 1; // planet radius
+const HOVER_ALT = 0.14; // UFO altitude above a stop
+const HOVER_TIME = 2.6; // seconds spent beaming over each stop
+const FLY_SPEED = 0.55; // radians of arc per second
+
+// ---------------------------------------------------------------------------
+// Renderer / scene / camera
+// ---------------------------------------------------------------------------
+const container = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(BLACK);
+container.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.01, 100);
+camera.position.set(0, 0.8, 3.6);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.enablePan = false;
+controls.minDistance = 1.6;
+controls.maxDistance = 7;
+controls.rotateSpeed = 0.5;
+
+scene.add(new THREE.AmbientLight(0xffffff, 1.6));
+const sun = new THREE.DirectionalLight(0xffffff, 2.2);
+sun.position.set(-3, 2, 4);
+scene.add(sun);
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+function latLonToVec3(lat, lon, r = R) {
+  const phi = THREE.MathUtils.degToRad(90 - lat);
+  const theta = THREE.MathUtils.degToRad(lon + 180);
+  return new THREE.Vector3(
+    -r * Math.sin(phi) * Math.cos(theta),
+    r * Math.cos(phi),
+    r * Math.sin(phi) * Math.sin(theta),
+  );
+}
+
+function slerpUnit(a, b, t, out = new THREE.Vector3()) {
+  const omega = Math.acos(THREE.MathUtils.clamp(a.dot(b), -1, 1));
+  if (omega < 1e-5) return out.copy(a);
+  const s = Math.sin(omega);
+  return out
+    .copy(a)
+    .multiplyScalar(Math.sin((1 - t) * omega) / s)
+    .addScaledVector(b, Math.sin(t * omega) / s);
+}
+
+function dotTexture(size = 64) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const g = c.getContext('2d');
+  g.fillStyle = '#fff';
+  g.beginPath();
+  g.arc(size / 2, size / 2, size / 2 - 1, 0, Math.PI * 2);
+  g.fill();
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+function polkaTexture({ bg, fg, cols = 16, rows = 8, radius = 0.28 }) {
+  const w = 512;
+  const h = 256;
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const g = c.getContext('2d');
+  g.fillStyle = bg;
+  g.fillRect(0, 0, w, h);
+  g.fillStyle = fg;
+  const cw = w / cols;
+  const ch = h / rows;
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const ox = (y % 2) * cw * 0.5;
+      g.beginPath();
+      g.arc(x * cw + ox + cw / 2, y * ch + ch / 2, Math.min(cw, ch) * radius, 0, Math.PI * 2);
+      g.fill();
+    }
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
+const DOT = dotTexture();
+
+// ---------------------------------------------------------------------------
+// Starfield: polka dots in space
+// ---------------------------------------------------------------------------
+function makeStars(count, color, size, minR, maxR) {
+  const pos = new Float32Array(count * 3);
+  const v = new THREE.Vector3();
+  for (let i = 0; i < count; i++) {
+    v.randomDirection().multiplyScalar(THREE.MathUtils.randFloat(minR, maxR));
+    pos.set([v.x, v.y, v.z], i * 3);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const mat = new THREE.PointsMaterial({
+    color,
+    size,
+    map: DOT,
+    transparent: true,
+    alphaTest: 0.5,
+    sizeAttenuation: true,
+    depthWrite: false,
+  });
+  return new THREE.Points(geo, mat);
+}
+const stars = new THREE.Group();
+stars.add(makeStars(900, WHITE, 0.09, 12, 30));
+stars.add(makeStars(120, RED, 0.22, 14, 30));
+scene.add(stars);
+
+// ---------------------------------------------------------------------------
+// Planet
+// ---------------------------------------------------------------------------
+const globe = new THREE.Group();
+scene.add(globe);
+
+const planet = new THREE.Mesh(
+  new THREE.SphereGeometry(R, 96, 64),
+  new THREE.MeshStandardMaterial({ color: 0x141414, roughness: 0.9, metalness: 0 }),
+);
+globe.add(planet);
+
+// Halo
+const halo = new THREE.Mesh(
+  new THREE.SphereGeometry(R * 1.06, 64, 48),
+  new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    transparent: true,
+    depthWrite: false,
+    uniforms: { color: { value: new THREE.Color(WHITE) } },
+    vertexShader: /* glsl */ `
+      varying vec3 vNormal;
+      void main() {
+        vNormal = normalize(normalMatrix * normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: /* glsl */ `
+      uniform vec3 color;
+      varying vec3 vNormal;
+      void main() {
+        float i = pow(0.62 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 3.0);
+        gl_FragColor = vec4(color, clamp(i, 0.0, 1.0) * 0.55);
+      }`,
+  }),
+);
+scene.add(halo);
+
+// Rasterise the land outlines into an equirectangular mask we can sample.
+function buildLandMask(topology) {
+  const W = 1440;
+  const H = 720;
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.fillStyle = '#000';
+  g.fillRect(0, 0, W, H);
+  g.fillStyle = '#fff';
+  const land = window.topojson.feature(topology, topology.objects.land);
+  const features = land.type === 'FeatureCollection' ? land.features : [land];
+  const project = ([lon, lat]) => [((lon + 180) / 360) * W, ((90 - lat) / 180) * H];
+  g.beginPath();
+  for (const f of features) {
+    const geom = f.geometry;
+    const polys = geom.type === 'Polygon' ? [geom.coordinates] : geom.coordinates;
+    for (const poly of polys) {
+      for (const ring of poly) {
+        ring.forEach((pt, i) => {
+          const [x, y] = project(pt);
+          if (i === 0) g.moveTo(x, y);
+          else g.lineTo(x, y);
+        });
+        g.closePath();
+      }
+    }
+  }
+  g.fill('evenodd');
+  const data = g.getImageData(0, 0, W, H).data;
+  return (lat, lon) => {
+    const x = Math.min(W - 1, Math.max(0, Math.floor(((lon + 180) / 360) * W)));
+    const y = Math.min(H - 1, Math.max(0, Math.floor(((90 - lat) / 180) * H)));
+    return data[(y * W + x) * 4] > 127;
+  };
+}
+
+// Cover the sphere evenly with dots (Fibonacci lattice); white on land, tiny grey at sea.
+function buildPolkaSurface(isLand) {
+  const N = 16000;
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  const land = [];
+  const sea = [];
+  for (let i = 0; i < N; i++) {
+    const y = 1 - (i / (N - 1)) * 2;
+    const lat = THREE.MathUtils.radToDeg(Math.asin(y));
+    let lon = THREE.MathUtils.radToDeg((i * golden) % (Math.PI * 2)) - 180;
+    (isLand(lat, lon) ? land : sea).push([lat, lon]);
+  }
+
+  const dummy = new THREE.Object3D();
+  const place = (list, radius, color, rScale) => {
+    const geo = new THREE.CircleGeometry(radius, 14);
+    const mat = new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide });
+    const mesh = new THREE.InstancedMesh(geo, mat, list.length);
+    list.forEach(([lat, lon], i) => {
+      const p = latLonToVec3(lat, lon, R * rScale);
+      dummy.position.copy(p);
+      dummy.lookAt(p.clone().multiplyScalar(2));
+      dummy.updateMatrix();
+      mesh.setMatrixAt(i, dummy.matrix);
+    });
+    mesh.instanceMatrix.needsUpdate = true;
+    return mesh;
+  };
+  globe.add(place(land, 0.0105, WHITE, 1.002));
+  globe.add(place(sea, 0.0045, 0x3a3a3a, 1.001));
+}
+
+fetch('vendor/world-atlas/land-110m.json')
+  .then((r) => {
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  })
+  .then((topology) => buildPolkaSurface(buildLandMask(topology)))
+  .catch((err) => {
+    console.warn('Could not load land data, using an all-dots planet instead.', err);
+    buildPolkaSurface(() => true);
+  });
+
+// ---------------------------------------------------------------------------
+// Tour stops: markers + flight arcs
+// ---------------------------------------------------------------------------
+const stops = TOUR.map((s) => ({ ...s, normal: latLonToVec3(s.lat, s.lon, 1) }));
+
+const markerGeo = new THREE.CircleGeometry(0.022, 32);
+const ringGeo = new THREE.RingGeometry(0.026, 0.034, 40);
+const pulseGeo = new THREE.RingGeometry(0.03, 0.036, 40);
+const markers = stops.map((s) => {
+  const g = new THREE.Group();
+  g.position.copy(s.normal).multiplyScalar(R * 1.004);
+  g.lookAt(s.normal.clone().multiplyScalar(2));
+  const disc = new THREE.Mesh(markerGeo, new THREE.MeshBasicMaterial({ color: RED }));
+  const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: WHITE, side: THREE.DoubleSide }));
+  const pulse = new THREE.Mesh(
+    pulseGeo,
+    new THREE.MeshBasicMaterial({ color: RED, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }),
+  );
+  g.add(disc, ring, pulse);
+  g.userData = { disc, ring, pulse };
+  globe.add(g);
+  return g;
+});
+
+function arcAltitude(omega, t) {
+  return HOVER_ALT + Math.sin(Math.PI * t) * (0.08 + omega * 0.22);
+}
+
+function arcPoint(a, b, t, out = new THREE.Vector3()) {
+  const omega = Math.acos(THREE.MathUtils.clamp(a.dot(b), -1, 1));
+  slerpUnit(a, b, t, out);
+  return out.multiplyScalar(R + arcAltitude(omega, t));
+}
+
+// Dotted trail lines between consecutive stops.
+const legs = stops.map((s, i) => {
+  const a = s.normal;
+  const b = stops[(i + 1) % stops.length].normal;
+  const omega = Math.acos(THREE.MathUtils.clamp(a.dot(b), -1, 1));
+  const n = Math.max(6, Math.ceil(omega * 60));
+  const pts = [];
+  for (let k = 0; k <= n; k++) {
+    const t = k / n;
+    const p = new THREE.Vector3();
+    slerpUnit(a, b, t, p);
+    // Trails hug the surface a little lower than the flight path.
+    p.multiplyScalar(R + 0.01 + Math.sin(Math.PI * t) * (0.04 + omega * 0.18));
+    pts.push(p);
+  }
+  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+  const mat = new THREE.PointsMaterial({
+    color: WHITE,
+    size: 0.018,
+    map: DOT,
+    transparent: true,
+    alphaTest: 0.5,
+    opacity: 0.35,
+  });
+  const line = new THREE.Points(geo, mat);
+  globe.add(line);
+  return { a, b, omega, duration: Math.max(1.6, omega / FLY_SPEED), line };
+});
+
+// ---------------------------------------------------------------------------
+// The alien saucer (polka-dotted, of course)
+// ---------------------------------------------------------------------------
+function buildUFO() {
+  const ufo = new THREE.Group();
+  const body = new THREE.Group(); // spins
+  ufo.add(body);
+
+  const hullTex = polkaTexture({ bg: '#f7f3ea', fg: '#0b0b0b', cols: 14, rows: 6, radius: 0.3 });
+  const hull = new THREE.Mesh(
+    new THREE.SphereGeometry(0.06, 48, 24),
+    new THREE.MeshStandardMaterial({ map: hullTex, roughness: 0.4, metalness: 0.2 }),
+  );
+  hull.scale.set(1, 0.28, 1);
+  body.add(hull);
+
+  const rim = new THREE.Mesh(
+    new THREE.TorusGeometry(0.06, 0.006, 12, 64),
+    new THREE.MeshStandardMaterial({ color: RED, roughness: 0.4 }),
+  );
+  rim.rotation.x = Math.PI / 2;
+  body.add(rim);
+
+  const domeTex = polkaTexture({ bg: '#e5232b', fg: '#f7f3ea', cols: 10, rows: 5, radius: 0.32 });
+  const dome = new THREE.Mesh(
+    new THREE.SphereGeometry(0.026, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+    new THREE.MeshStandardMaterial({ map: domeTex, roughness: 0.2, metalness: 0.1 }),
+  );
+  dome.position.y = 0.01;
+  body.add(dome);
+
+  const lights = [];
+  const lightGeo = new THREE.SphereGeometry(0.0055, 10, 8);
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * Math.PI * 2;
+    const l = new THREE.Mesh(lightGeo, new THREE.MeshBasicMaterial({ color: i % 2 ? WHITE : RED }));
+    l.position.set(Math.cos(a) * 0.052, -0.006, Math.sin(a) * 0.052);
+    body.add(l);
+    lights.push(l);
+  }
+
+  // Tractor beam: a cone whose apex sits under the saucer and points at the ground.
+  const beamGeo = new THREE.ConeGeometry(1, 1, 40, 1, true);
+  beamGeo.translate(0, -0.5, 0);
+  const beamTex = polkaTexture({ bg: 'rgba(0,0,0,0)', fg: '#f7f3ea', cols: 18, rows: 6, radius: 0.22 });
+  beamTex.repeat.set(1, 1);
+  const beam = new THREE.Mesh(
+    beamGeo,
+    new THREE.MeshBasicMaterial({
+      color: WHITE,
+      map: beamTex,
+      transparent: true,
+      opacity: 0,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    }),
+  );
+  beam.position.y = -0.01;
+  ufo.add(beam);
+
+  const beamGlow = new THREE.Mesh(
+    beamGeo,
+    new THREE.MeshBasicMaterial({
+      color: RED,
+      transparent: true,
+      opacity: 0,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    }),
+  );
+  beamGlow.position.y = -0.01;
+  ufo.add(beamGlow);
+
+  ufo.userData = { body, lights, beam, beamGlow, beamTex };
+  return ufo;
+}
+
+const ufo = buildUFO();
+globe.add(ufo);
+
+// ---------------------------------------------------------------------------
+// UI
+// ---------------------------------------------------------------------------
+const $ = (id) => document.getElementById(id);
+const agendaEl = $('agenda');
+const labelEl = $('stop-label');
+$('stop-count').textContent = `${stops.length} stops`;
+
+const agendaItems = stops.map((s, i) => {
+  const li = document.createElement('li');
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  const pip = document.createElement('span');
+  pip.className = 'pip';
+  const city = document.createElement('span');
+  city.className = 'city';
+  city.textContent = `${s.city}, ${s.country}`;
+  const meta = document.createElement('span');
+  meta.className = 'meta';
+  const d = document.createElement('b');
+  d.textContent = s.dates;
+  meta.append(d, ` · ${s.venue}`);
+  btn.append(pip, city, meta);
+  btn.addEventListener('click', () => jumpTo(i));
+  li.appendChild(btn);
+  agendaEl.appendChild(li);
+  return li;
+});
+
+function setCurrentUI(index, arriving) {
+  const s = stops[index];
+  $('now-city').textContent = s.city;
+  $('now-venue').textContent = `${s.venue} · ${s.country}`;
+  $('now-dates').textContent = s.dates;
+  document.querySelector('.now-kicker').textContent = arriving ? 'Now landing' : 'Next stop';
+  agendaItems.forEach((li, i) => {
+    li.classList.toggle('current', i === index);
+    li.classList.toggle('visited', i < index);
+  });
+  agendaItems[index].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  labelEl.textContent = s.city;
+}
+
+// ---------------------------------------------------------------------------
+// Animation state machine: hover over a stop -> fly the arc to the next one
+// ---------------------------------------------------------------------------
+const state = {
+  index: 0, // current (or departing) stop
+  phase: 'hover', // 'hover' | 'fly'
+  t: 0, // seconds into the current phase
+  playing: true,
+  follow: true,
+};
+
+function jumpTo(i) {
+  state.index = i;
+  state.phase = 'hover';
+  state.t = 0;
+  setFollow(true);
+  setCurrentUI(i, true);
+}
+
+function step(delta) {
+  state.index = (state.index + delta + stops.length) % stops.length;
+  state.phase = 'hover';
+  state.t = 0;
+  setCurrentUI(state.index, true);
+}
+
+function setPlaying(p) {
+  state.playing = p;
+  const b = $('btn-play');
+  b.textContent = p ? '❚❚' : '►';
+  b.title = p ? 'Pause' : 'Play';
+  b.setAttribute('aria-label', b.title);
+}
+
+function setFollow(f) {
+  state.follow = f;
+  const b = $('btn-follow');
+  b.classList.toggle('active', f);
+  b.setAttribute('aria-pressed', String(f));
+}
+
+$('btn-prev').addEventListener('click', () => step(-1));
+$('btn-next').addEventListener('click', () => step(1));
+$('btn-play').addEventListener('click', () => setPlaying(!state.playing));
+$('btn-follow').addEventListener('click', () => setFollow(!state.follow));
+controls.addEventListener('start', () => setFollow(false));
+
+window.addEventListener('keydown', (e) => {
+  if (e.target.closest && e.target.closest('button')) return;
+  if (e.key === ' ') {
+    e.preventDefault();
+    setPlaying(!state.playing);
+  } else if (e.key === 'ArrowRight') step(1);
+  else if (e.key === 'ArrowLeft') step(-1);
+});
+
+if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) setPlaying(false);
+
+setCurrentUI(0, true);
+
+// Point the camera at the first stop straight away.
+camera.position.copy(stops[0].normal).multiplyScalar(3.6);
+
+// ---------------------------------------------------------------------------
+// Render loop
+// ---------------------------------------------------------------------------
+const clock = new THREE.Clock();
+const tmpA = new THREE.Vector3();
+const tmpB = new THREE.Vector3();
+const tmpUp = new THREE.Vector3();
+const camDir = new THREE.Vector3();
+const projected = new THREE.Vector3();
+
+function updateUFO(dt, elapsed) {
+  const { body, lights, beam, beamGlow, beamTex } = ufo.userData;
+  let pos;
+  let ahead;
+  let beamStrength = 0;
+
+  if (state.phase === 'hover') {
+    const s = stops[state.index];
+    const bob = Math.sin(elapsed * 3) * 0.006;
+    pos = tmpA.copy(s.normal).multiplyScalar(R + HOVER_ALT + bob);
+    const next = stops[(state.index + 1) % stops.length].normal;
+    ahead = tmpB.copy(s.normal).lerp(next, 0.02).normalize().multiplyScalar(R + HOVER_ALT);
+    // Fade the beam in and out during the hover.
+    const k = state.t / HOVER_TIME;
+    beamStrength = Math.min(1, k * 5, (1 - k) * 5);
+    if (state.playing && state.t >= HOVER_TIME) {
+      state.phase = 'fly';
+      state.t = 0;
+      setCurrentUI((state.index + 1) % stops.length, false);
+    }
+  } else {
+    const leg = legs[state.index];
+    const raw = Math.min(1, state.t / leg.duration);
+    const t = raw < 0.5 ? 2 * raw * raw : 1 - Math.pow(-2 * raw + 2, 2) / 2; // ease in-out
+    pos = arcPoint(leg.a, leg.b, t, tmpA);
+    ahead = arcPoint(leg.a, leg.b, Math.min(1, t + 0.01), tmpB);
+    if (raw >= 1) {
+      state.index = (state.index + 1) % stops.length;
+      state.phase = 'hover';
+      state.t = 0;
+      setCurrentUI(state.index, true);
+    }
+  }
+
+  ufo.position.copy(pos);
+  tmpUp.copy(pos).normalize();
+  ufo.up.copy(tmpUp);
+  if (ahead.distanceToSquared(pos) > 1e-10) ufo.lookAt(ahead);
+  // Slight forward tilt while cruising.
+  ufo.rotateX(state.phase === 'fly' ? 0.25 : 0);
+
+  body.rotation.y += dt * (state.phase === 'fly' ? 4 : 1.5);
+  lights.forEach((l, i) => {
+    l.visible = Math.floor(elapsed * 6 + i) % 2 === 0;
+  });
+
+  const beamLen = pos.length() - R;
+  beam.scale.set(0.045, beamLen, 0.045);
+  beamGlow.scale.set(0.05, beamLen, 0.05);
+  beam.material.opacity = 0.85 * beamStrength;
+  beamGlow.material.opacity = 0.35 * beamStrength;
+  beam.visible = beamGlow.visible = beamStrength > 0.001;
+  beamTex.offset.y = -elapsed * 0.6;
+
+  return pos;
+}
+
+function updateMarkers(elapsed) {
+  markers.forEach((m, i) => {
+    const { disc, pulse } = m.userData;
+    const isCurrent = i === state.index && state.phase === 'hover';
+    const s = isCurrent ? 1.5 : 1;
+    disc.scale.setScalar(THREE.MathUtils.lerp(disc.scale.x, s, 0.15));
+    if (isCurrent) {
+      const p = (elapsed * 0.8) % 1;
+      pulse.scale.setScalar(1 + p * 2.5);
+      pulse.material.opacity = 1 - p;
+    } else {
+      pulse.material.opacity = 0;
+    }
+  });
+  legs.forEach((leg, i) => {
+    leg.line.material.opacity = i === state.index && state.phase === 'fly' ? 0.95 : 0.3;
+  });
+}
+
+function updateCamera(ufoPos) {
+  if (!state.follow) return;
+  const dist = camera.position.length();
+  camDir.copy(camera.position).normalize();
+  tmpUp.copy(ufoPos).normalize();
+  // Look slightly from the south so the saucer isn't dead centre.
+  tmpUp.y -= 0.18;
+  tmpUp.normalize();
+  camDir.lerp(tmpUp, 0.035).normalize();
+  camera.position.copy(camDir).multiplyScalar(dist);
+}
+
+function updateLabel() {
+  const target = state.phase === 'hover' ? stops[state.index] : stops[(state.index + 1) % stops.length];
+  projected.copy(target.normal).multiplyScalar(R * 1.01);
+  const facing = projected.clone().normalize().dot(camera.position.clone().normalize());
+  projected.project(camera);
+  const visible = facing > 0.15 && projected.z < 1;
+  labelEl.hidden = !visible;
+  if (visible) {
+    const x = (projected.x * 0.5 + 0.5) * window.innerWidth;
+    const y = (-projected.y * 0.5 + 0.5) * window.innerHeight;
+    labelEl.style.left = `${x}px`;
+    labelEl.style.top = `${y}px`;
+  }
+}
+
+function animate() {
+  const dt = Math.min(clock.getDelta(), 0.1);
+  const elapsed = clock.elapsedTime;
+  if (state.playing) state.t += dt;
+
+  const ufoPos = updateUFO(dt, elapsed);
+  updateMarkers(elapsed);
+  updateCamera(ufoPos);
+  stars.rotation.y += dt * 0.004;
+
+  controls.update();
+  renderer.render(scene, camera);
+  updateLabel();
+}
+renderer.setAnimationLoop(animate);
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});

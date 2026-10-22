@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Polka World · Angine de Poitrine 2027 World Tour</title>
+  <meta name="description" content="A polka-dot 3D planet where an alien saucer flies over every stop of Angine de Poitrine's 2027 world tour." />
+  <link rel="stylesheet" href="css/style.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./vendor/three/three.module.min.js",
+        "three/addons/controls/OrbitControls.js": "./vendor/three/OrbitControls.js"
+      }
+    }
+  </script>
+  <script src="vendor/topojson-client/topojson-client.min.js"></script>
+</head>
+<body>
+  <div id="scene" aria-hidden="true"></div>
+
+  <header class="title">
+    <h1>
+      <span class="band">Angine de Poitrine</span>
+      <span class="tour">World Tour <b>2027</b></span>
+    </h1>
+  </header>
+
+  <div id="stop-label" class="stop-label" hidden></div>
+
+  <section id="now" class="card now" aria-live="polite">
+    <div class="now-kicker">Now landing</div>
+    <div id="now-city" class="now-city">—</div>
+    <div id="now-venue" class="now-venue"></div>
+    <div id="now-dates" class="now-dates"></div>
+    <div class="controls">
+      <button id="btn-prev" type="button" title="Previous stop" aria-label="Previous stop">◀</button>
+      <button id="btn-play" type="button" title="Pause" aria-label="Pause">❚❚</button>
+      <button id="btn-next" type="button" title="Next stop" aria-label="Next stop">▶</button>
+      <button id="btn-follow" type="button" class="active" title="Camera follows the saucer" aria-pressed="true">Follow</button>
+    </div>
+  </section>
+
+  <aside class="card agenda">
+    <h2>Agenda <small id="stop-count"></small></h2>
+    <ol id="agenda"></ol>
+    <p class="source">
+      Dates from the band's announcement on
+      <a href="https://laylo.com/anginedepoitrine" target="_blank" rel="noopener">Laylo</a>.
+      They may change, so check the band's channels for tickets.
+    </p>
+  </aside>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
