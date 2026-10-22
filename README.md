@@ -8,6 +8,7 @@ reference. There are no red accents. CSS variables are the shared palette for
 both the interface and the 3D saucer.
 
 - The continents are drawn as polka dots on a black planet, built from Natural Earth land data.
+- A spinning yellow 3D pyramid beside the title echoes the CD cover's stippled artwork. It shares the globe's renderer, pauses with the playback control, and stays still when reduced motion is requested.
 - Each tour stop has a gold marker. The saucer flies great-circle arcs between stops in tour order, then hovers over each city with a polka-dot tractor beam.
 - The agenda panel lists every date. Click a stop to send the saucer there.
 - Each event has a **Tickets** link to the destination supplied by the band, or an event-specific **RSVP** link for presale registration. The current stop also shows its link.
@@ -27,7 +28,8 @@ You need an HTTP server because ES modules and `fetch` don't work from `file://`
 The live site is published with GitHub Pages at
 [brunoborges.github.io/polkaworld](https://brunoborges.github.io/polkaworld/).
 Pages serves the repository root of the `gh-pages` branch. To publish an updated,
-committed version, push that commit to `gh-pages` (without force-pushing).
+committed version, push that commit to both `main` and `gh-pages` (without
+force-pushing).
 
 ## Tour data
 

@@ -104,6 +104,48 @@ function polkaTexture({ bg, fg, cols = 16, rows = 8, radius = 0.28 }) {
 
 const DOT = dotTexture();
 
+// A second scene shares the globe's renderer, keeping the title emblem in screen space.
+const pyramidScene = new THREE.Scene();
+const pyramidCamera = new THREE.OrthographicCamera(-1.2, 1.2, 1.2, -1.2, 0.1, 10);
+pyramidCamera.position.set(2.3, 1.4, 3);
+pyramidCamera.lookAt(0, 0, 0);
+pyramidScene.add(new THREE.AmbientLight(WHITE, 1.8));
+const pyramidLight = new THREE.DirectionalLight(WHITE, 2.4);
+pyramidLight.position.set(-3, 4, 2);
+pyramidScene.add(pyramidLight);
+
+const pyramidTextureCanvas = document.createElement('canvas');
+pyramidTextureCanvas.width = pyramidTextureCanvas.height = 256;
+const pyramidPaint = pyramidTextureCanvas.getContext('2d');
+pyramidPaint.fillStyle = themeColor('--gold');
+pyramidPaint.fillRect(0, 0, 256, 256);
+pyramidPaint.fillStyle = themeColor('--black');
+for (let i = 0; i < 1100; i++) {
+  const x = Math.random() * 256;
+  const y = Math.random() * 256;
+  pyramidPaint.beginPath();
+  pyramidPaint.arc(x, y, 0.4 + Math.random() * 0.6, 0, Math.PI * 2);
+  pyramidPaint.fill();
+}
+const pyramidTexture = new THREE.CanvasTexture(pyramidTextureCanvas);
+pyramidTexture.colorSpace = THREE.SRGBColorSpace;
+const pyramid = new THREE.Group();
+const pyramidGeometry = new THREE.ConeGeometry(0.9, 1.65, 4);
+pyramid.add(new THREE.Mesh(
+  pyramidGeometry,
+  new THREE.MeshStandardMaterial({ map: pyramidTexture, flatShading: true, roughness: 0.8 }),
+));
+pyramid.add(new THREE.LineSegments(
+  new THREE.EdgesGeometry(pyramidGeometry),
+  new THREE.LineBasicMaterial({ color: BLACK }),
+));
+pyramid.rotation.y = Math.PI / 4;
+pyramidScene.add(pyramid);
+const pyramidFrame = document.getElementById('title-pyramid');
+let pyramidBounds = pyramidFrame.getBoundingClientRect();
+const fitPyramid = () => { pyramidBounds = pyramidFrame.getBoundingClientRect(); };
+new ResizeObserver(fitPyramid).observe(pyramidFrame);
+
 // ---------------------------------------------------------------------------
 // Starfield: polka dots in space
 // ---------------------------------------------------------------------------
@@ -516,7 +558,8 @@ window.addEventListener('keydown', (e) => {
   else if (e.key === 'ArrowLeft') step(-1);
 });
 
-if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) setPlaying(false);
+const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+if (reducedMotion.matches) setPlaying(false);
 
 setCurrentUI(0, true);
 
@@ -678,6 +721,17 @@ function animate() {
 
   controls.update();
   renderer.render(scene, camera);
+  if (state.playing && !reducedMotion.matches && !document.hidden) pyramid.rotation.y += dt * 0.32;
+  renderer.autoClear = false;
+  renderer.setScissorTest(true);
+  const pyramidY = window.innerHeight - pyramidBounds.bottom;
+  renderer.setViewport(pyramidBounds.left, pyramidY, pyramidBounds.width, pyramidBounds.height);
+  renderer.setScissor(pyramidBounds.left, pyramidY, pyramidBounds.width, pyramidBounds.height);
+  renderer.clearDepth();
+  renderer.render(pyramidScene, pyramidCamera);
+  renderer.setScissorTest(false);
+  renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+  renderer.autoClear = true;
   updateLabel();
 }
 
@@ -691,6 +745,7 @@ function fitView() {
   else camera.clearViewOffset();
   camera.updateProjectionMatrix();
   renderer.setSize(w, h);
+  fitPyramid();
 }
 window.addEventListener('resize', fitView);
 fitView();

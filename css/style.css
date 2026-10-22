@@ -36,7 +36,16 @@ html, body {
   position: fixed;
   top: 18px;
   left: 22px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
   pointer-events: none;
+}
+.title h1 { min-width: 0; }
+#title-pyramid {
+  flex: 0 0 auto;
+  width: clamp(64px, 7vw, 108px);
+  aspect-ratio: 1;
 }
 .title h1 {
   margin: 0;
@@ -268,6 +277,10 @@ html, body {
   transform: translate(14px, -50%);
 }
 
+@media (min-width: 761px) and (max-width: 1000px) {
+  .title .band { font-size: 3.1vw; }
+}
+
 /* ---------- Small screens ---------- */
 @media (max-width: 760px) {
   .agenda {
@@ -297,5 +310,9 @@ html, body {
   .agenda h2 { font-size: 14px; margin-bottom: 4px; }
   .controls { margin-top: 8px; }
   .title { top: 10px; left: 12px; }
+  .title { gap: 8px; }
+  .title .band { padding: 8px 10px; font-size: clamp(16px, 4.4vw, 26px); }
+  .title .tour { font-size: 12px; letter-spacing: 0.16em; }
+  #title-pyramid { width: clamp(48px, 12vw, 72px); }
   .card { box-shadow: 5px 5px 0 var(--gold); }
 }
