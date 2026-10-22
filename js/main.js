@@ -1,10 +1,14 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TOUR } from './tour.js';
+import { estimateTour } from './insights.js';
 
-const BLACK = 0x0b0b0b;
-const WHITE = 0xf7f3ea;
-const RED = 0xe5232b;
+const theme = getComputedStyle(document.documentElement);
+const themeColor = (name) => theme.getPropertyValue(name).trim();
+const BLACK = new THREE.Color(themeColor('--black')).getHex();
+const WHITE = new THREE.Color(themeColor('--white')).getHex();
+const RED = new THREE.Color(themeColor('--red')).getHex();
+const YELLOW = new THREE.Color(themeColor('--yellow')).getHex();
 
 const R = 1; // planet radius
 const HOVER_ALT = 0.26; // UFO altitude above a stop
@@ -318,7 +322,7 @@ function buildUFO() {
   const body = new THREE.Group(); // spins
   ufo.add(body);
 
-  const hullTex = polkaTexture({ bg: '#f7f3ea', fg: '#0b0b0b', cols: 14, rows: 6, radius: 0.3 });
+  const hullTex = polkaTexture({ bg: themeColor('--white'), fg: themeColor('--black'), cols: 14, rows: 6, radius: 0.3 });
   const hull = new THREE.Mesh(
     new THREE.SphereGeometry(0.06, 48, 24),
     new THREE.MeshStandardMaterial({ map: hullTex, roughness: 0.4, metalness: 0.2 }),
@@ -333,7 +337,7 @@ function buildUFO() {
   rim.rotation.x = Math.PI / 2;
   body.add(rim);
 
-  const domeTex = polkaTexture({ bg: '#e5232b', fg: '#f7f3ea', cols: 10, rows: 5, radius: 0.32 });
+  const domeTex = polkaTexture({ bg: themeColor('--red'), fg: themeColor('--white'), cols: 10, rows: 5, radius: 0.32 });
   const dome = new THREE.Mesh(
     new THREE.SphereGeometry(0.03, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2),
     new THREE.MeshStandardMaterial({ map: domeTex, roughness: 0.2, metalness: 0.1 }),
@@ -345,7 +349,7 @@ function buildUFO() {
   const lightGeo = new THREE.SphereGeometry(0.0055, 10, 8);
   for (let i = 0; i < 10; i++) {
     const a = (i / 10) * Math.PI * 2;
-    const l = new THREE.Mesh(lightGeo, new THREE.MeshBasicMaterial({ color: i % 2 ? WHITE : RED }));
+    const l = new THREE.Mesh(lightGeo, new THREE.MeshBasicMaterial({ color: i % 2 ? WHITE : YELLOW }));
     l.position.set(Math.cos(a) * 0.052, -0.006, Math.sin(a) * 0.052);
     body.add(l);
     lights.push(l);
@@ -354,7 +358,7 @@ function buildUFO() {
   // Tractor beam: a cone whose apex sits under the saucer and points at the ground.
   const beamGeo = new THREE.ConeGeometry(1, 1, 40, 1, true);
   beamGeo.translate(0, -0.5, 0);
-  const beamTex = polkaTexture({ bg: 'rgba(0,0,0,0)', fg: '#f7f3ea', cols: 18, rows: 6, radius: 0.22 });
+  const beamTex = polkaTexture({ bg: 'rgba(0,0,0,0)', fg: themeColor('--white'), cols: 18, rows: 6, radius: 0.22 });
   beamTex.repeat.set(1, 1);
   const beam = new THREE.Mesh(
     beamGeo,
@@ -400,6 +404,13 @@ const $ = (id) => document.getElementById(id);
 const agendaEl = $('agenda');
 const labelEl = $('stop-label');
 $('stop-count').textContent = `${stops.length} stops`;
+const insights = estimateTour(TOUR);
+const number = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
+$('insight-stops').textContent = number.format(insights.totalStops);
+$('insight-km').textContent = `~${number.format(Math.round(insights.distanceKm / 100) * 100)} km`;
+$('insight-miles').textContent = `~${number.format(Math.round(insights.distanceMiles / 100) * 100)} mi`;
+$('insight-hours').textContent = `~${number.format(insights.flightHours)} h`;
+$('tour-insights').open = !window.matchMedia('(max-width: 760px)').matches;
 
 function setEventLink(link, stop) {
   const action = stop.ticketUrl ? 'Tickets' : 'RSVP';

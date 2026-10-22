@@ -1,7 +1,8 @@
 :root {
-  --black: #0b0b0b;
-  --white: #f7f3ea;
-  --red: #e5232b;
+  --black: #121212;
+  --white: #ffffff;
+  --red: #b90000;
+  --yellow: #fce477;
 }
 
 * { box-sizing: border-box; }
@@ -52,8 +53,8 @@ html, body {
   color: var(--black);
   background-color: var(--white);
   background-image:
-    radial-gradient(circle, rgba(11, 11, 11, 0.13) 22%, transparent 24%),
-    radial-gradient(circle, rgba(11, 11, 11, 0.13) 22%, transparent 24%);
+    radial-gradient(circle, rgba(18, 18, 18, 0.13) 22%, transparent 24%),
+    radial-gradient(circle, rgba(18, 18, 18, 0.13) 22%, transparent 24%);
   background-size: 18px 18px;
   background-position: 0 0, 9px 9px;
   border-radius: 14px;
@@ -75,18 +76,54 @@ html, body {
 }
 
 /* ---------- Now landing ---------- */
-.now {
+.tour-panels {
+  position: fixed;
   left: 22px;
   bottom: 22px;
   width: min(340px, calc(100vw - 44px));
+  max-height: calc(100dvh - 160px);
+  overflow-y: auto;
+  padding: 0 8px 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.tour-panels .card {
+  position: static;
+  flex-shrink: 0;
+}
+.now {
   padding: 16px 18px 14px;
 }
+.insights { padding: 12px 18px; }
+.insights summary {
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--yellow);
+}
+.insights summary:focus-visible { outline: 2px solid var(--yellow); outline-offset: 4px; }
+.insights dl { margin: 14px 0 10px; font-size: 14px; }
+.insights dl > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px dotted var(--white);
+}
+.insights dt span { font-size: 12px; }
+.insights dd { margin: 0; text-align: right; font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.insights dd small { display: block; margin-top: 3px; font-size: 13px; font-weight: 400; }
+.insights p { margin: 10px 0 0; font-size: 12px; line-height: 1.5; }
 .now-kicker {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.25em;
   text-transform: uppercase;
-  color: var(--red);
+  color: var(--yellow);
 }
 .now-city {
   margin-top: 4px;
@@ -109,13 +146,13 @@ html, body {
 .event-link {
   display: inline-block;
   padding: 8px 10px;
-  color: var(--white);
+  color: var(--yellow);
   font-size: 13px;
   font-weight: 700;
   text-underline-offset: 3px;
 }
-.event-link:hover { background: rgba(247, 243, 234, 0.12); }
-.event-link:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+.event-link:hover { background: rgba(255, 255, 255, 0.12); }
+.event-link:focus-visible { outline: 2px solid var(--yellow); outline-offset: 2px; }
 .now > .event-link { margin-left: 8px; }
 
 .controls {
@@ -137,12 +174,12 @@ html, body {
   border-radius: 999px;
   cursor: pointer;
 }
-.controls button:hover { background: rgba(247, 243, 234, 0.12); }
+.controls button:hover { background: rgba(255, 255, 255, 0.12); }
 .controls button.active {
   color: var(--black);
-  background-color: var(--white);
+  background-color: var(--yellow);
 }
-.controls button:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
+.controls button:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
 #btn-follow { margin-left: auto; text-transform: uppercase; letter-spacing: 0.1em; }
 
 /* ---------- Agenda ---------- */
@@ -161,9 +198,10 @@ html, body {
   text-transform: uppercase;
   letter-spacing: 0.2em;
 }
-.agenda h2 small { font-size: 11px; color: var(--red); letter-spacing: 0.1em; }
+.agenda h2 small { font-size: 11px; color: var(--yellow); letter-spacing: 0.1em; }
 .agenda ol {
   flex: 1;
+  min-height: 0;
   margin: 0;
   padding: 0 8px;
   list-style: none;
@@ -187,8 +225,8 @@ html, body {
   border-radius: 12px;
   cursor: pointer;
 }
-.agenda li button:hover { background: rgba(247, 243, 234, 0.08); }
-.agenda li button:focus-visible { outline: 2px solid var(--red); }
+.agenda li button:hover { background: rgba(255, 255, 255, 0.08); }
+.agenda li button:focus-visible { outline: 2px solid var(--yellow); }
 .agenda .pip {
   grid-row: span 2;
   align-self: center;
@@ -199,10 +237,10 @@ html, body {
 }
 .agenda li.visited .pip { background: var(--white); }
 .agenda li.current .pip { background: var(--red); border-color: var(--red); box-shadow: 0 0 0 3px var(--white); }
-.agenda li.current button { background: rgba(229, 35, 43, 0.18); }
+.agenda li.current button { background: rgba(185, 0, 0, 0.3); }
 .agenda .city { font-weight: 800; text-transform: uppercase; font-size: 13px; letter-spacing: 0.04em; }
-.agenda .meta { font-size: 12px; opacity: 0.75; }
-.agenda .meta b { color: var(--red); font-weight: 700; }
+.agenda .meta { font-size: 12px; }
+.agenda .meta b { color: var(--yellow); font-weight: 700; }
 .agenda .source {
   margin: 8px 18px 0;
   font-size: 10.5px;
@@ -241,13 +279,18 @@ html, body {
     width: auto;
     height: 24vh;
   }
-  .now {
+  .tour-panels {
     left: 12px;
     right: 12px;
     bottom: calc(24vh + 24px);
     width: auto;
+    max-height: calc(76dvh - 120px);
+    gap: 10px;
+  }
+  .now {
     padding: 10px 14px;
   }
+  .insights { padding: 10px 14px; }
   .now-city { font-size: 20px; }
   .now-venue { font-size: 13px; }
   .now-dates { margin-top: 4px; }

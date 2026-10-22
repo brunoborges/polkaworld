@@ -1,13 +1,16 @@
 # Polka World
 
 A polka-dot 3D planet where an alien saucer flies over every stop of
-**Angine de Poitrine's 2027 world tour**. The black, white and red polka dots
-follow the band's look.
+**Angine de Poitrine's 2027 world tour**. The polka-dot look uses black
+(`#121212`), white (`#ffffff`), deep red (`#b90000`), and pale yellow (`#fce477`)
+from the [band's official website](https://anginedepoitrine.com/). CSS variables
+are the shared palette for both the interface and the 3D saucer.
 
 - The continents are drawn as polka dots on a black planet, built from Natural Earth land data.
 - Each tour stop has a red marker. The saucer flies great-circle arcs between stops in tour order, then hovers over each city with a polka-dot tractor beam.
 - The agenda panel lists every date. Click a stop to send the saucer there.
 - Each event has a **Tickets** link to the destination supplied by the band, or an event-specific **RSVP** link for presale registration. The current stop also shows its link.
+- **Tour insights** shows the event count, estimated kilometers/miles, and flight-equivalent hours. Expand it on mobile to see the details.
 - Controls: drag to orbit, scroll to zoom. **Space** pauses or plays, and **← / →** go to the previous or next stop. **Follow** makes the camera track the saucer.
 
 ## Run it
@@ -35,6 +38,21 @@ Steel is not listed in this source and is not included. Festival date ranges
 are preserved; they do not imply a confirmed individual performance day.
 The source's general city-signup form is not a concert and is excluded.
 Dates and ticket availability may change, so check the official listing.
+
+## Travel estimates
+
+[`js/insights.js`](js/insights.js) sums great-circle distances between consecutive
+agenda entries using a mean Earth radius of 6,371.0088 km. Repeat nights in the
+same city add no distance. Unlike the looping animation, the estimate does not
+include a return leg from Saguenay to Melbourne.
+
+Flying time assumes a constant **800 km/h**. This is a flight-equivalent estimate,
+not the band's itinerary: airports, actual flight routes, ground travel,
+layovers, takeoff/landing, and scheduling are not modeled. Festival ranges can
+overlap, and their agenda order is not a confirmed travel schedule. Distances
+are displayed to the nearest 100 km/mi and time to the nearest hour.
+
+Run the calculation tests with `node --test tests/insights.test.mjs`.
 
 ## Third-party code (vendored)
 
