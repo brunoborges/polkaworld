@@ -106,6 +106,18 @@ html, body {
   border-radius: 999px;
 }
 
+.event-link {
+  display: inline-block;
+  padding: 8px 10px;
+  color: var(--white);
+  font-size: 13px;
+  font-weight: 700;
+  text-underline-offset: 3px;
+}
+.event-link:hover { background: rgba(247, 243, 234, 0.12); }
+.event-link:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+.now > .event-link { margin-left: 8px; }
+
 .controls {
   display: flex;
   gap: 8px;
@@ -160,6 +172,7 @@ html, body {
   scrollbar-color: var(--white) transparent;
 }
 .agenda li { margin: 0; }
+.agenda li > .event-link { margin: 0 0 5px 28px; }
 .agenda li button {
   display: grid;
   grid-template-columns: 18px 1fr;

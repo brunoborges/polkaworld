@@ -401,6 +401,15 @@ const agendaEl = $('agenda');
 const labelEl = $('stop-label');
 $('stop-count').textContent = `${stops.length} stops`;
 
+function setEventLink(link, stop) {
+  const action = stop.ticketUrl ? 'Tickets' : 'RSVP';
+  link.href = stop.ticketUrl || stop.rsvpUrl;
+  link.textContent = action;
+  link.target = '_blank';
+  link.rel = 'noopener noreferrer';
+  link.setAttribute('aria-label', `${action} for ${stop.venue}, ${stop.city}, ${stop.dates}, 2027 (opens in a new tab)`);
+}
+
 const agendaItems = stops.map((s, i) => {
   const li = document.createElement('li');
   const btn = document.createElement('button');
@@ -418,6 +427,10 @@ const agendaItems = stops.map((s, i) => {
   btn.append(pip, city, meta);
   btn.addEventListener('click', () => jumpTo(i));
   li.appendChild(btn);
+  const link = document.createElement('a');
+  link.className = 'event-link';
+  setEventLink(link, s);
+  li.appendChild(link);
   agendaEl.appendChild(li);
   return li;
 });
@@ -427,6 +440,7 @@ function setCurrentUI(index, arriving) {
   $('now-city').textContent = s.city;
   $('now-venue').textContent = `${s.venue} · ${s.country}`;
   $('now-dates').textContent = s.dates;
+  setEventLink($('now-event-link'), s);
   document.querySelector('.now-kicker').textContent = arriving ? 'Now landing' : 'Next stop';
   agendaItems.forEach((li, i) => {
     li.classList.toggle('current', i === index);
@@ -484,7 +498,7 @@ $('btn-follow').addEventListener('click', () => setFollow(!state.follow));
 controls.addEventListener('start', () => setFollow(false));
 
 window.addEventListener('keydown', (e) => {
-  if (e.target.closest && e.target.closest('button')) return;
+  if (e.target.closest && e.target.closest('button, a')) return;
   if (e.key === ' ') {
     e.preventDefault();
     setPlaying(!state.playing);
