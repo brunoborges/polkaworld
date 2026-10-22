@@ -7,8 +7,7 @@ const theme = getComputedStyle(document.documentElement);
 const themeColor = (name) => theme.getPropertyValue(name).trim();
 const BLACK = new THREE.Color(themeColor('--black')).getHex();
 const WHITE = new THREE.Color(themeColor('--white')).getHex();
-const RED = new THREE.Color(themeColor('--red')).getHex();
-const YELLOW = new THREE.Color(themeColor('--yellow')).getHex();
+const GOLD = new THREE.Color(themeColor('--gold')).getHex();
 
 const R = 1; // planet radius
 const HOVER_ALT = 0.26; // UFO altitude above a stop
@@ -130,7 +129,7 @@ function makeStars(count, color, size, minR, maxR) {
 }
 const stars = new THREE.Group();
 stars.add(makeStars(900, WHITE, 0.09, 12, 30));
-stars.add(makeStars(120, RED, 0.22, 14, 30));
+stars.add(makeStars(120, GOLD, 0.22, 14, 30));
 scene.add(stars);
 
 // ---------------------------------------------------------------------------
@@ -263,11 +262,11 @@ const markers = stops.map((s) => {
   const g = new THREE.Group();
   g.position.copy(s.normal).multiplyScalar(R * 1.004);
   g.lookAt(s.normal.clone().multiplyScalar(2));
-  const disc = new THREE.Mesh(markerGeo, new THREE.MeshBasicMaterial({ color: RED }));
+  const disc = new THREE.Mesh(markerGeo, new THREE.MeshBasicMaterial({ color: GOLD }));
   const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: WHITE, side: THREE.DoubleSide }));
   const pulse = new THREE.Mesh(
     pulseGeo,
-    new THREE.MeshBasicMaterial({ color: RED, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }),
+    new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false }),
   );
   g.add(disc, ring, pulse);
   g.userData = { disc, ring, pulse };
@@ -332,12 +331,12 @@ function buildUFO() {
 
   const rim = new THREE.Mesh(
     new THREE.TorusGeometry(0.06, 0.006, 12, 64),
-    new THREE.MeshStandardMaterial({ color: RED, roughness: 0.4 }),
+    new THREE.MeshStandardMaterial({ color: GOLD, roughness: 0.3, metalness: 0.5 }),
   );
   rim.rotation.x = Math.PI / 2;
   body.add(rim);
 
-  const domeTex = polkaTexture({ bg: themeColor('--red'), fg: themeColor('--white'), cols: 10, rows: 5, radius: 0.32 });
+  const domeTex = polkaTexture({ bg: themeColor('--black'), fg: themeColor('--gold'), cols: 10, rows: 5, radius: 0.32 });
   const dome = new THREE.Mesh(
     new THREE.SphereGeometry(0.03, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2),
     new THREE.MeshStandardMaterial({ map: domeTex, roughness: 0.2, metalness: 0.1 }),
@@ -349,7 +348,7 @@ function buildUFO() {
   const lightGeo = new THREE.SphereGeometry(0.0055, 10, 8);
   for (let i = 0; i < 10; i++) {
     const a = (i / 10) * Math.PI * 2;
-    const l = new THREE.Mesh(lightGeo, new THREE.MeshBasicMaterial({ color: i % 2 ? WHITE : YELLOW }));
+    const l = new THREE.Mesh(lightGeo, new THREE.MeshBasicMaterial({ color: i % 2 ? WHITE : GOLD }));
     l.position.set(Math.cos(a) * 0.052, -0.006, Math.sin(a) * 0.052);
     body.add(l);
     lights.push(l);
@@ -378,7 +377,7 @@ function buildUFO() {
   const beamGlow = new THREE.Mesh(
     beamGeo,
     new THREE.MeshBasicMaterial({
-      color: RED,
+      color: GOLD,
       transparent: true,
       opacity: 0,
       side: THREE.DoubleSide,

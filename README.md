@@ -2,12 +2,13 @@
 
 A polka-dot 3D planet where an alien saucer flies over every stop of
 **Angine de Poitrine's 2027 world tour**. The polka-dot look uses black
-(`#121212`), white (`#ffffff`), deep red (`#b90000`), and pale yellow (`#fce477`)
-from the [band's official website](https://anginedepoitrine.com/). CSS variables
-are the shared palette for both the interface and the 3D saucer.
+(`#121212`), white (`#ffffff`), and gold (`#e2bf3a`), matching the black-and-white
+polka dots and gold details in the band's artwork supplied as the visual
+reference. There are no red accents. CSS variables are the shared palette for
+both the interface and the 3D saucer.
 
 - The continents are drawn as polka dots on a black planet, built from Natural Earth land data.
-- Each tour stop has a red marker. The saucer flies great-circle arcs between stops in tour order, then hovers over each city with a polka-dot tractor beam.
+- Each tour stop has a gold marker. The saucer flies great-circle arcs between stops in tour order, then hovers over each city with a polka-dot tractor beam.
 - The agenda panel lists every date. Click a stop to send the saucer there.
 - Each event has a **Tickets** link to the destination supplied by the band, or an event-specific **RSVP** link for presale registration. The current stop also shows its link.
 - **Tour insights** shows the event count, estimated kilometers/miles, and flight-equivalent hours. Expand it on mobile to see the details.
