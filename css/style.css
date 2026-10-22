@@ -51,10 +51,13 @@ html, body {
   font-weight: 900;
   color: var(--black);
   background-color: var(--white);
-  background-image: radial-gradient(circle, rgba(11, 11, 11, 0.9) 18%, transparent 20%);
-  background-size: 22px 22px;
+  background-image:
+    radial-gradient(circle, rgba(11, 11, 11, 0.13) 22%, transparent 24%),
+    radial-gradient(circle, rgba(11, 11, 11, 0.13) 22%, transparent 24%);
+  background-size: 18px 18px;
+  background-position: 0 0, 9px 9px;
   border-radius: 14px;
-  text-shadow: 3px 3px 0 var(--white), -3px -3px 0 var(--white), 3px -3px 0 var(--white), -3px 3px 0 var(--white);
+  box-shadow: 6px 6px 0 var(--red);
 }
 .title .tour {
   display: block;
@@ -212,7 +215,7 @@ html, body {
   box-shadow: 3px 3px 0 var(--red);
   white-space: nowrap;
   pointer-events: none;
-  transform: translate(-50%, calc(-100% - 14px));
+  transform: translate(14px, -50%);
 }
 
 /* ---------- Small screens ---------- */
@@ -223,16 +226,20 @@ html, body {
     right: 12px;
     bottom: 12px;
     width: auto;
-    height: 30vh;
+    height: 24vh;
   }
   .now {
     left: 12px;
     right: 12px;
-    bottom: calc(30vh + 24px);
+    bottom: calc(24vh + 24px);
     width: auto;
     padding: 10px 14px;
   }
   .now-city { font-size: 20px; }
+  .now-venue { font-size: 13px; }
+  .now-dates { margin-top: 4px; }
+  .agenda { padding-top: 10px; }
+  .agenda h2 { font-size: 14px; margin-bottom: 4px; }
   .controls { margin-top: 8px; }
   .title { top: 10px; left: 12px; }
   .card { box-shadow: 5px 5px 0 var(--red); }

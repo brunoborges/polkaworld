@@ -7,9 +7,10 @@ const WHITE = 0xf7f3ea;
 const RED = 0xe5232b;
 
 const R = 1; // planet radius
-const HOVER_ALT = 0.14; // UFO altitude above a stop
+const HOVER_ALT = 0.26; // UFO altitude above a stop
 const HOVER_TIME = 2.6; // seconds spent beaming over each stop
 const FLY_SPEED = 0.55; // radians of arc per second
+const UFO_SCALE = 1.7;
 
 // ---------------------------------------------------------------------------
 // Renderer / scene / camera
@@ -23,12 +24,11 @@ container.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.01, 100);
-camera.position.set(0, 0.8, 3.6);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.enablePan = false;
-controls.minDistance = 1.6;
+controls.minDistance = 0.9;
 controls.maxDistance = 7;
 controls.rotateSpeed = 0.5;
 
@@ -323,7 +323,7 @@ function buildUFO() {
     new THREE.SphereGeometry(0.06, 48, 24),
     new THREE.MeshStandardMaterial({ map: hullTex, roughness: 0.4, metalness: 0.2 }),
   );
-  hull.scale.set(1, 0.28, 1);
+  hull.scale.set(1, 0.36, 1);
   body.add(hull);
 
   const rim = new THREE.Mesh(
@@ -335,10 +335,10 @@ function buildUFO() {
 
   const domeTex = polkaTexture({ bg: '#e5232b', fg: '#f7f3ea', cols: 10, rows: 5, radius: 0.32 });
   const dome = new THREE.Mesh(
-    new THREE.SphereGeometry(0.026, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+    new THREE.SphereGeometry(0.03, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2),
     new THREE.MeshStandardMaterial({ map: domeTex, roughness: 0.2, metalness: 0.1 }),
   );
-  dome.position.y = 0.01;
+  dome.position.y = 0.012;
   body.add(dome);
 
   const lights = [];
@@ -390,6 +390,7 @@ function buildUFO() {
 }
 
 const ufo = buildUFO();
+ufo.scale.setScalar(UFO_SCALE);
 globe.add(ufo);
 
 // ---------------------------------------------------------------------------
@@ -431,7 +432,7 @@ function setCurrentUI(index, arriving) {
     li.classList.toggle('current', i === index);
     li.classList.toggle('visited', i < index);
   });
-  agendaItems[index].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  agendaItems[index].scrollIntoView({ block: 'center', behavior: 'smooth' });
   labelEl.textContent = s.city;
 }
 
@@ -495,9 +496,6 @@ if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) setPlaying(fa
 
 setCurrentUI(0, true);
 
-// Point the camera at the first stop straight away.
-camera.position.copy(stops[0].normal).multiplyScalar(3.6);
-
 // ---------------------------------------------------------------------------
 // Render loop
 // ---------------------------------------------------------------------------
@@ -507,6 +505,12 @@ const tmpB = new THREE.Vector3();
 const tmpUp = new THREE.Vector3();
 const camDir = new THREE.Vector3();
 const projected = new THREE.Vector3();
+const tmpN = new THREE.Vector3();
+const tmpT = new THREE.Vector3();
+const tmpFwd = new THREE.Vector3();
+const tmpSide = new THREE.Vector3();
+const lastFwd = new THREE.Vector3(1, 0, 0);
+const basis = new THREE.Matrix4();
 
 function updateUFO(dt, elapsed) {
   const { body, lights, beam, beamGlow, beamTex } = ufo.userData;
@@ -542,23 +546,30 @@ function updateUFO(dt, elapsed) {
     }
   }
 
+  // Orient the saucer: local +Y = away from the planet, local +Z = heading along the surface.
   ufo.position.copy(pos);
   tmpUp.copy(pos).normalize();
-  ufo.up.copy(tmpUp);
-  if (ahead.distanceToSquared(pos) > 1e-10) ufo.lookAt(ahead);
+  tmpFwd.subVectors(ahead, pos);
+  tmpFwd.addScaledVector(tmpUp, -tmpFwd.dot(tmpUp));
+  if (tmpFwd.lengthSq() > 1e-12) lastFwd.copy(tmpFwd.normalize());
+  else lastFwd.addScaledVector(tmpUp, -lastFwd.dot(tmpUp)).normalize();
+  tmpSide.crossVectors(tmpUp, lastFwd).normalize();
+  lastFwd.crossVectors(tmpSide, tmpUp).normalize();
+  basis.makeBasis(tmpSide, tmpUp, lastFwd);
+  ufo.quaternion.setFromRotationMatrix(basis);
   // Slight forward tilt while cruising.
-  ufo.rotateX(state.phase === 'fly' ? 0.25 : 0);
+  if (state.phase === 'fly') ufo.rotateX(0.25);
 
   body.rotation.y += dt * (state.phase === 'fly' ? 4 : 1.5);
   lights.forEach((l, i) => {
     l.visible = Math.floor(elapsed * 6 + i) % 2 === 0;
   });
 
-  const beamLen = pos.length() - R;
-  beam.scale.set(0.045, beamLen, 0.045);
-  beamGlow.scale.set(0.05, beamLen, 0.05);
-  beam.material.opacity = 0.85 * beamStrength;
-  beamGlow.material.opacity = 0.35 * beamStrength;
+  const beamLen = (pos.length() - R) / UFO_SCALE;
+  beam.scale.set(0.05, beamLen, 0.05);
+  beamGlow.scale.set(0.056, beamLen, 0.056);
+  beam.material.opacity = beamStrength;
+  beamGlow.material.opacity = 0.6 * beamStrength;
   beam.visible = beamGlow.visible = beamStrength > 0.001;
   beamTex.offset.y = -elapsed * 0.6;
 
@@ -584,16 +595,36 @@ function updateMarkers(elapsed) {
   });
 }
 
-function updateCamera(ufoPos) {
+// Follow camera: aim at the saucer's hover point and look at it from an oblique,
+// southward-tilted angle so the saucer, its beam and the ground read as a 3D scene.
+const CAM_TILT = THREE.MathUtils.degToRad(24);
+const SOUTH = new THREE.Vector3(0, -1, 0);
+const camTarget = new THREE.Vector3();
+const camOffsetDir = new THREE.Vector3();
+
+function followTargetFor(point, out) {
+  return out.copy(point).normalize().multiplyScalar(R + HOVER_ALT * 0.5);
+}
+
+function followDirFor(point, out) {
+  const n = tmpN.copy(point).normalize();
+  const t = tmpT.copy(SOUTH).addScaledVector(n, -SOUTH.dot(n));
+  if (t.lengthSq() < 1e-6) return out.copy(n);
+  t.normalize();
+  return out.copy(n).multiplyScalar(Math.cos(CAM_TILT)).addScaledVector(t, Math.sin(CAM_TILT)).normalize();
+}
+
+function updateCamera(ufoPos, dt) {
   if (!state.follow) return;
-  const dist = camera.position.length();
-  camDir.copy(camera.position).normalize();
-  tmpUp.copy(ufoPos).normalize();
-  // Look slightly from the south so the saucer isn't dead centre.
-  tmpUp.y -= 0.18;
-  tmpUp.normalize();
-  camDir.lerp(tmpUp, 0.035).normalize();
-  camera.position.copy(camDir).multiplyScalar(dist);
+  const dist = camera.position.distanceTo(controls.target);
+  const k = 1 - Math.exp(-dt * 3);
+  camDir.copy(camera.position).sub(controls.target).normalize();
+  camDir.lerp(followDirFor(ufoPos, tmpUp), k).normalize();
+  controls.target.lerp(followTargetFor(ufoPos, camTarget), k);
+  camera.position.copy(controls.target).addScaledVector(camDir, dist);
+  // Never let a long transition swing the camera through the planet.
+  const minR = R + 0.35;
+  if (camera.position.length() < minR) camera.position.setLength(minR);
 }
 
 function updateLabel() {
@@ -618,17 +649,31 @@ function animate() {
 
   const ufoPos = updateUFO(dt, elapsed);
   updateMarkers(elapsed);
-  updateCamera(ufoPos);
+  updateCamera(ufoPos, dt);
   stars.rotation.y += dt * 0.004;
 
   controls.update();
   renderer.render(scene, camera);
   updateLabel();
 }
-renderer.setAnimationLoop(animate);
 
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
+// On narrow screens the panels cover the lower half, so lift the globe and pull back a bit.
+const isNarrow = () => window.innerWidth <= 760;
+function fitView() {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  camera.aspect = w / h;
+  if (isNarrow()) camera.setViewOffset(w, h, 0, Math.round(h * 0.2), w, h);
+  else camera.clearViewOffset();
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
+  renderer.setSize(w, h);
+}
+window.addEventListener('resize', fitView);
+fitView();
+
+// Start the camera on the first stop.
+followTargetFor(stops[0].normal, controls.target);
+followDirFor(stops[0].normal, camOffsetDir);
+camera.position.copy(controls.target).addScaledVector(camOffsetDir, isNarrow() ? 4 : 3.1);
+
+renderer.setAnimationLoop(animate);
