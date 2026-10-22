@@ -107,7 +107,7 @@ const DOT = dotTexture();
 // A second scene shares the globe's renderer, keeping the title emblem in screen space.
 const pyramidScene = new THREE.Scene();
 const pyramidCamera = new THREE.OrthographicCamera(-1.2, 1.2, 1.2, -1.2, 0.1, 10);
-pyramidCamera.position.set(2.3, 1.4, 3);
+pyramidCamera.position.set(2.3, 0, 3);
 pyramidCamera.lookAt(0, 0, 0);
 pyramidScene.add(new THREE.AmbientLight(WHITE, 1.8));
 const pyramidLight = new THREE.DirectionalLight(WHITE, 2.4);
